@@ -1,75 +1,315 @@
 # MLOps Pipeline Management API
 
 ## API Overview
-This API is used for managing a pipeline that combines machine learning and operations. It's built using JAX-RS, also known as Jersey, and provides several endpoints for managing different parts of the pipeline. You can use it to manage your machine learning workspace, models, and metrics for evaluating those models. The API is pretty lightweight, running on a Grizzly server without needing a big framework like Spring Boot or a database - it just uses simple in-memory data structures to store information.
 
-### Base Path
-All endpoints are relative to: `http://localhost:8080/api/v1`
+This project is an MLOps Pipeline Management REST API developed for the 5COSC022W Client-Server Architectures coursework.
+
+The API is built using **JAX-RS with Jersey** and runs on an embedded **Grizzly HTTP server**. It is a backend REST API, so it does not provide a web user interface. The API returns JSON responses and can be tested using a browser, curl, or Postman.
+
+The API allows users to manage:
+
+* Machine learning workspaces
+* Machine learning models
+* Evaluation metrics for models
+
+The project does **not** use Spring Boot and does **not** use a database. Data is stored in memory using Java collections such as `HashMap` and `ArrayList`.
+
+## Base Path
+
+All API endpoints are available under the following base path:
+
+```text
+http://localhost:8080/api/v1
+```
+
+## Technologies Used
+
+* Java
+* Maven
+* JAX-RS / Jersey
+* Embedded Grizzly HTTP Server
+* Jackson JSON support
+* In-memory HashMap and ArrayList storage
+
+## Project Structure
+
+```text
+src/main/java/com/adithya/mlops
+│
+├── Main.java
+├── config
+│   └── JerseyConfig.java
+├── exception
+│   └── Custom exceptions and exception mappers
+├── filter
+│   └── LoggingFilter.java
+├── model
+│   ├── MLWorkspace.java
+│   ├── MachineLearningModel.java
+│   └── EvaluationMetric.java
+├── repository
+│   └── DataStore.java
+└── resource
+    ├── BaseResource.java
+    ├── WorkspaceResource.java
+    ├── ModelResource.java
+    └── EvaluationMetricResource.java
+```
 
 ## Build and Run Instructions
 
 ### Prerequisites
-- Java 11 or higher
-- Maven 3.x
+
+* Java 11 or higher
+* Maven 3.x
 
 ### Build the Project
+
 Open a terminal in the project directory and run:
+
 ```bash
-mvn clean compile
+mvn clean package
 ```
 
 ### Run the Application
-Start the embedded Grizzly server using the Maven Exec plugin:
+
+Start the embedded Grizzly server using:
+
 ```bash
 mvn exec:java
 ```
-To get started, the server will be available at http://localhost:8080/api/v1. If you need to stop it, just press Ctrl-C in your terminal and it will shut down.
 
-## Curl Commands
+After the server starts, the API will be available at:
 
-1. **Check API Status**
-```bash
-curl -X GET http://localhost:8080/api/v1
+```text
+http://localhost:8080/api/v1
 ```
 
-2. **Create a Workspace**
-```bash
-curl -X POST http://localhost:8080/api/v1/workspaces \
--H "Content-Type: application/json" \
--d '{"teamName":"DataScience-Alpha", "storageQuotaGb":100}'
+To stop the server, press:
+
+```text
+Ctrl + C
 ```
 
-3. **Get All Workspaces**
-```bash
-curl -X GET http://localhost:8080/api/v1/workspaces
+## API Endpoints
+
+### Discovery Endpoint
+
+```http
+GET /api/v1
 ```
 
-4. **Create a Model** (Replace `<workspace_id>` with an actual ID from the previous step)
-```bash
-curl -X POST http://localhost:8080/api/v1/models \
--H "Content-Type: application/json" \
--d '{"framework":"TensorFlow", "status":"TRAINING", "workspaceId":"<workspace_id>"}'
+Returns API metadata such as the API name, version, admin contact, and available resource links.
+
+### Workspace Endpoints
+
+```http
+GET /api/v1/workspaces
+POST /api/v1/workspaces
+GET /api/v1/workspaces/{workspaceId}
+DELETE /api/v1/workspaces/{workspaceId}
 ```
 
-5. **Get Deployed Models**
-```bash
-curl -X GET "http://localhost:8080/api/v1/models?status=DEPLOYED"
+### Model Endpoints
+
+```http
+GET /api/v1/models
+POST /api/v1/models
+GET /api/v1/models?status=DEPLOYED
 ```
 
-6. **Add an Evaluation Metric** (Replace `<model_id>` with an actual Model ID)
-```bash
-curl -X POST http://localhost:8080/api/v1/models/<model_id>/metrics \
--H "Content-Type: application/json" \
--d '{"accuracyScore": 0.95}'
+### Evaluation Metric Endpoints
+
+```http
+GET /api/v1/models/{modelId}/metrics
+POST /api/v1/models/{modelId}/metrics
 ```
 
-If you want to get rid of a workspace, you should know that it won't work if there are models in it - you'll just get an error message back.
-curl -X DELETE http://localhost:8080/api/v1/workspaces/<workspace_id>
-Conceptual Answers
-So, why do we need to use @ApplicationPath? Well, it's actually pretty simple. @ApplicationPath is used in JAX-RS to define the base URI for all the resources that are hosted within an application. Think of it like a root path, like /api/v1, that all the specific resource @Path annotations will be appended to. This makes it really easy to keep your API organized and versioned cleanly. For example, if you have @ApplicationPath("/api/v1") and a resource with @Path("/users"), the full path would be /api/v1/users. It's a great way to keep everything tidy and make it easy to manage different versions of your API.
+## Sample Curl Commands
 
-So, you want to know how the Sub-Resource Locator pattern works in JAX-RS. Well, it's actually pretty simple. You see, this pattern is used when you have a resource that needs to delegate requests to another resource. To make it work, you annotate a method with @Path, but you don't use any HTTP method annotations like @GET or @POST. When a request matches the path, JAX-RS sends it to the object that the method returns. For example, let's say you have a resource called ModelResource. It can delegate requests for a certain path, like /{modelId}/metrics, to another resource called EvaluationMetricResource. Then, EvaluationMetricResource handles the HTTP methods for that specific model. It's kind of like a relay team, where the first resource passes the request to the next one, which then takes care of it. This pattern is really useful when you have complex resources that need to be broken down into smaller, more manageable parts. And the best part is, it's not that hard to implement, once you get the hang of it.
+The following examples are PowerShell-friendly curl commands.
 
-We need ExceptionMapper because it helps us catch exceptions that happen when we're processing requests. This way, we can turn these exceptions into proper HTTP responses that make sense to the client. Instead of just sending back a generic error message or a stack trace, we can catch specific exceptions - like WorkspaceNotEmptyException - and turn them into a standardized JSON response with the right HTTP status code, such as 409 Conflict. This makes the experience better and safer for the client. For example, when a WorkspaceNotEmptyException is thrown, we can map it to a 409 Conflict response, which tells the client that the workspace is not empty and cannot be deleted. This approach allows us to handle exceptions in a more controlled and user-friendly way, providing a better experience for the client. By using ExceptionMapper, we can ensure that our application returns meaningful and informative error messages, rather than just generic errors. This helps to improve the overall quality and reliability of our application.
+### 1. Check API Discovery Endpoint
 
-What is the purpose of ContainerRequestFilter and ContainerResponseFilter? These filters provide a way to intercept and process incoming HTTP requests and outgoing HTTP responses globally. ContainerRequestFilter can be used for tasks like authentication, logging incoming URLs, or modifying headers before the request reaches the resource method. ContainerResponseFilter is used for tasks like adding CORS headers or logging response status codes before the response is sent back to the client.
+```powershell
+curl.exe http://localhost:8080/api/v1
+```
+
+### 2. Create a Workspace
+
+```powershell
+@'
+{"id":"WS-VISION-01","teamName":"Computer Vision Lab","storageQuotaGb":500,"modelIds":[]}
+'@ | Set-Content -Path workspace.json -Encoding ASCII
+
+curl.exe -X POST "http://localhost:8080/api/v1/workspaces" -H "Content-Type: application/json" --data-binary "@workspace.json"
+```
+
+### 3. Get All Workspaces
+
+```powershell
+curl.exe http://localhost:8080/api/v1/workspaces
+```
+
+### 4. Create a Machine Learning Model
+
+```powershell
+@'
+{"framework":"TensorFlow","status":"DEPLOYED","latestAccuracy":0.91,"workspaceId":"WS-VISION-01"}
+'@ | Set-Content -Path model.json -Encoding ASCII
+
+$response = curl.exe -s -X POST "http://localhost:8080/api/v1/models" -H "Content-Type: application/json" --data-binary "@model.json"
+$response
+$modelId = ($response | ConvertFrom-Json).id
+```
+
+### 5. Filter Models by Status
+
+```powershell
+curl.exe "http://localhost:8080/api/v1/models?status=DEPLOYED"
+```
+
+### 6. Add an Evaluation Metric to a Model
+
+```powershell
+@'
+{"accuracyScore":0.94}
+'@ | Set-Content -Path metric.json -Encoding ASCII
+
+curl.exe -X POST "http://localhost:8080/api/v1/models/$modelId/metrics" -H "Content-Type: application/json" --data-binary "@metric.json"
+```
+
+### 7. Get Metrics for a Model
+
+```powershell
+curl.exe "http://localhost:8080/api/v1/models/$modelId/metrics"
+```
+
+### 8. Check Updated Model Accuracy
+
+```powershell
+curl.exe http://localhost:8080/api/v1/models
+```
+
+### 9. Invalid Workspace Error Example
+
+```powershell
+@'
+{"framework":"PyTorch","status":"TRAINING","latestAccuracy":0.75,"workspaceId":"WRONG-WS"}
+'@ | Set-Content -Path invalid-model.json -Encoding ASCII
+
+curl.exe -i -X POST "http://localhost:8080/api/v1/models" -H "Content-Type: application/json" --data-binary "@invalid-model.json"
+```
+
+Expected response status:
+
+```text
+422
+```
+
+### 10. Delete Workspace with Assigned Models
+
+```powershell
+curl.exe -i -X DELETE http://localhost:8080/api/v1/workspaces/WS-VISION-01
+```
+
+Expected response status:
+
+```text
+409 Conflict
+```
+
+## Business Rules
+
+* A workspace can contain multiple machine learning models.
+* A machine learning model must be linked to an existing workspace.
+* Model IDs are generated by the server using UUID.
+* Models can be filtered using the `status` query parameter.
+* Evaluation metrics are managed as a nested resource under a model.
+* When a new metric is added, the parent model’s `latestAccuracy` value is updated.
+* A workspace cannot be deleted if models are still assigned to it.
+* A deprecated model cannot accept new evaluation metrics.
+
+## Error Handling
+
+The API uses custom exceptions and JAX-RS `ExceptionMapper` classes to return structured JSON error responses.
+
+Examples:
+
+| Situation                                  | HTTP Status |
+| ------------------------------------------ | ----------- |
+| Workspace not found                        | 404         |
+| Workspace has assigned models              | 409         |
+| Invalid workspace ID when creating a model | 422         |
+| Adding metric to deprecated model          | 403         |
+| Unexpected server error                    | 500         |
+
+## Logging
+
+The project includes a request and response logging filter using `ContainerRequestFilter` and `ContainerResponseFilter`.
+
+The filter logs:
+
+* HTTP method
+* Request URI
+* Response status
+
+This helps demonstrate request-response processing on the server side.
+
+## Conceptual Answers
+
+### 1. What is the purpose of `@ApplicationPath`?
+
+`@ApplicationPath` defines the base URI path for the JAX-RS application. In this project, the base path is `/api/v1`, so all API resources are available under that path. This helps organise the API and supports versioning.
+
+### 2. How does Jackson help with JSON conversion?
+
+Jackson is used to convert Java objects into JSON responses and convert JSON request bodies into Java objects. In JAX-RS, this is handled using message body readers and writers. This allows the API to send and receive JSON data without manually parsing JSON strings.
+
+### 3. Why should REST APIs be stateless?
+
+A REST API should be stateless because each request should contain all information needed to process it. The server should not depend on stored client session state. This improves scalability, reliability, and makes the API easier to test.
+
+### 4. What is the purpose of `Cache-Control` headers?
+
+`Cache-Control` headers tell clients and intermediaries how responses should be cached. For dynamic API data, caching may need to be disabled or controlled carefully so that clients receive up-to-date information.
+
+### 5. What is the purpose of the HTTP `HEAD` method?
+
+The `HEAD` method is similar to `GET`, but it returns only the response headers without the response body. It can be used to check whether a resource exists or to inspect metadata without downloading the full response.
+
+### 6. What is URL encoding and why is it important?
+
+URL encoding converts unsafe or special characters into a safe format for URLs. This is important when query parameters contain spaces, symbols, or special characters. Without URL encoding, the server may read the request incorrectly.
+
+### 7. How does the Sub-Resource Locator pattern work in JAX-RS?
+
+A sub-resource locator is a method annotated with `@Path` but without an HTTP method annotation such as `@GET` or `@POST`. It returns another resource object that handles the rest of the request. In this project, model metrics are handled using `/models/{modelId}/metrics`.
+
+### 8. What is the difference between class-level and method-level `@Produces`?
+
+Class-level `@Produces` applies a default response media type to all methods in the resource class. Method-level `@Produces` applies only to a specific method and can override the class-level setting. This is useful when different endpoints return different content types.
+
+### 9. Why do we need `ExceptionMapper`?
+
+`ExceptionMapper` converts Java exceptions into proper HTTP responses. Instead of exposing stack traces or returning generic errors, the API returns structured JSON responses with correct status codes such as 404, 409, 422, or 500.
+
+### 10. What is the difference between 4xx and 5xx errors?
+
+4xx errors are client-side errors. They usually mean the request is invalid, missing data, or not allowed. 5xx errors are server-side errors, meaning something unexpected happened on the server.
+
+### 11. How does mapper specificity work?
+
+When multiple exception mappers exist, JAX-RS chooses the most specific mapper for the exception type. For example, a `WorkspaceNotEmptyExceptionMapper` is more specific than a general catch-all mapper for `Throwable`.
+
+### 12. What is the purpose of `ContainerRequestFilter` and `ContainerResponseFilter`?
+
+`ContainerRequestFilter` intercepts incoming HTTP requests before they reach resource methods. `ContainerResponseFilter` intercepts outgoing responses before they are sent to the client. In this project, they are used for request and response logging.
+
+### 13. What are metadata contexts in JAX-RS?
+
+Metadata contexts provide information about the current request or response. Examples include the request URI, HTTP method, headers, and response status. They are useful in filters, exception mappers, and resource methods.
+
+## Conclusion
+
+This project demonstrates a RESTful backend API using JAX-RS and Jersey. It supports workspace management, model management, nested evaluation metrics, custom error handling, and logging. The application uses in-memory storage and does not use Spring Boot or any database.
